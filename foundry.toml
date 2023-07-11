@@ -2,5 +2,8 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+remappings = ["@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/"]
+# remappings can map imports to another source without needing to change the path from the codebase
+# this will let our codebase be foundry agnostic since the import would work elsewhere like remix 
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
