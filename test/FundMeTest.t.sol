@@ -2,12 +2,11 @@
 
 pragma solidity 0.8.18;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {FundMe} from "../src/FundMe.sol";
 
-contract FundMeTest is
-    Test // we are extending upon the Test contract using inheritance
-{
+// we are extending upon the Test contract using inheritance
+contract FundMeTest is Test {
     FundMe fundMe;
 
     function setUp() external {

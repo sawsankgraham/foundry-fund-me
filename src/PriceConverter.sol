@@ -9,6 +9,9 @@ library PriceConverter {
     // getPrice will get the price of ETH/USD
     // getConversionRate will get the conversion interms of the price
 
+    // We will make a constructor that will take the address of the chainlink ETH/USD data feed
+    // This will allow us to feed the address at the time of deployment
+
     function getPrice() internal view returns (uint256) {
         // We will be using the Goerli Testnet for ETH/USD price for that we need
         // Address: 0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e
