@@ -5,6 +5,8 @@ import {PriceConverter} from "./PriceConverter.sol";
 
 error FundMe__NotOwner(); // this naming convention will allow us to debug easier by letting us know which contract sent the error
 
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
 contract FundMe {
     // Gas cost before making variable minimusUsd constant -> 752,235
     // Gas cost after making variable minimusUsd constant -> 634,564
@@ -20,10 +22,20 @@ contract FundMe {
 
     // Common convention is the CAPITALIZE all constants and add 'i_' prefix to all immutables
 
+    AggregatorV3Interface ethUSDPriceFeed;
+
     // Adding a constructor
     // this is called in the same transaction as it is deployed
-    constructor() {
+    constructor(address _ethUSDPriceFeedAddress) {
         i_owner = msg.sender;
+        // We will make the constructor take the address of the chainlink ETH/USD data feed
+        // This will allow us to feed the address at the time of deployment
+        ethUSDPriceFeed = AggregatorV3Interface(_ethUSDPriceFeedAddress);
+    }
+
+    // Get version to test the connection to the datafeed is successful
+    function getVersion() public view returns (uint256) {
+        return ethUSDPriceFeed.version();
     }
 
     using PriceConverter for uint256; // this will allow us to use the library created as an extension for uint256 variables
@@ -51,7 +63,7 @@ contract FundMe {
         // require(condition, message);
         // the getConversionRate is a custum function we added from the PriceConverter library
         require(
-            msg.value.getConversionRate() > MINIMUM_USD,
+            msg.value.getConversionRate(ethUSDPriceFeed) > MINIMUM_USD,
             "Atleast $5 is required"
         ); // we use getConversionRate to get the amount of ETH that is minimum in terms of USD
 
@@ -80,10 +92,9 @@ contract FundMe {
         // require(sendSuccess, "Withdraw failed");
 
         // call -> is a low level solidity function (study more on this), RECOMMENDED
-        (
-            bool callSuccess, /* bytes memory dataReturned */
-
-        ) = payable(msg.sender).call{value: address(this).balance}("");
+        (bool callSuccess /* bytes memory dataReturned */, ) = payable(
+            msg.sender
+        ).call{value: address(this).balance}("");
         require(callSuccess, "Withdraw failed");
     }
 
