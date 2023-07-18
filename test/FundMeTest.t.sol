@@ -1,6 +1,6 @@
 // SPDX-License-Indentifier: MIT
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.19;
 
 import {Test} from "forge-std/Test.sol";
 import {FundMe} from "../src/FundMe.sol";
@@ -39,5 +39,16 @@ contract FundMeTest is Test {
     function testIfConnectionSuccessful() public {
         // Check the connection to priceFeed by getting the version which should be int(4)
         assertEq(fundMe.getVersion(), 4);
+    }
+
+    // Test the fund me should fail with no value sent
+    function testShouldFailIfNoValueIsSent() public {
+        vm.expectRevert(); // this will check if the next line will revert
+        fundMe.fund();
+    }
+
+    // Test if the data is changed after funded
+    function testShouldChangeDataAfterFunded() public {
+        fundMe.fund{value: 10e18}(); // This will send the data inside {} with the transaction
     }
 }
