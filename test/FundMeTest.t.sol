@@ -11,7 +11,12 @@ import {DeployFundMe} from "../script/DeployFundMe.s.sol";
 contract FundMeTest is Test {
     FundMe fundMe;
 
-    // this will run first before any other functions are triggered.
+    // Constants to be used during the tests
+    uint256 constant SEND_VALUE = 0.1 ether;
+    uint256 constant STARTING_BALANCE = 1 ether;
+    address USER = makeAddr("user"); // from forge-std  makes an address mapped to the value provided
+
+    // this will run first before every test functions are triggered.
     function setUp() external {
         // FundMe fundMe = new FundMe(0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e)
         // constructing our FundMe contract here would mean we will need to modify multiple codes each time we change environment
@@ -20,8 +25,10 @@ contract FundMeTest is Test {
         // We are using the deploy script contract to have consistency across system while testing and deploying
         DeployFundMe deployFundMe = new DeployFundMe();
         fundMe = deployFundMe.run();
+        vm.deal(USER, STARTING_BALANCE);
     }
 
+    // tests functions should always have the 'test' keyword as a prefix
     function testDollarMinimumAmountIsFive() public {
         // every test functions should start with 'test'
         assertEq(fundMe.MINIMUM_USD(), 5e18);
@@ -33,7 +40,7 @@ contract FundMeTest is Test {
         // assertEq(fundMe.i_owner(), address(this)); // we get access to address because this is basically a contract
 
         // Since we are using the deploy script the address now, the owner of this contract has changed to msg.sender
-        assertEq(fundMe.i_owner(), msg.sender);
+        assertEq(fundMe.getOwner(), msg.sender);
     }
 
     function testIfConnectionSuccessful() public {
@@ -47,8 +54,81 @@ contract FundMeTest is Test {
         fundMe.fund();
     }
 
+    modifier funded() {
+        vm.prank(USER); // this makes the transactions below be sent from the USER
+        fundMe.fund{value: SEND_VALUE}(); // This will send the data inside {} with the transaction
+        _;
+    }
+
     // Test if the data is changed after funded
-    function testShouldChangeDataAfterFunded() public {
-        fundMe.fund{value: 10e18}(); // This will send the data inside {} with the transaction
+    // funded modifier will fund the USER account with SEND_VALUE ether
+    function testShouldChangeDataAfterFunded() public funded {
+        uint256 amountFunded = fundMe.getAddressToAmountFunded(USER);
+        assertEq(amountFunded, SEND_VALUE);
+    }
+
+    // Test if funder is added to the funders array
+    function testShouldAddFunderToArray() public funded {
+        assertEq(USER, fundMe.getFunderFromArrayByIndex(0));
+    }
+
+    // Test if only owner of the contract can call the withdraw function
+    function testShoulFailWhenNotOwnerCallsWithdraw() public funded {
+        // We will be pranking again because the above prank is done only for the next line which is not a 'cheatcode'
+        vm.prank(USER);
+        vm.expectRevert(); // this will not reset the pranking user
+        fundMe.withdraw();
+    }
+
+    function testWithdrawWithSingleFunder() public funded {
+        // Arrange
+        address owner = fundMe.getOwner();
+        uint256 startingOwnerBalance = owner.balance;
+        uint256 startingFundMeBalance = address(fundMe).balance;
+
+        // Act
+        vm.prank(owner);
+        fundMe.withdraw();
+
+        // Assert
+        uint256 endingOwnerBalance = owner.balance;
+        uint256 endingFundMeBalance = address(fundMe).balance;
+
+        assertEq(endingFundMeBalance, 0); // all balance in the contract must be withdrawn
+        assertEq(
+            startingFundMeBalance + startingOwnerBalance,
+            endingOwnerBalance
+        ); // the owner must be deposited all the balance in the contract
+    }
+
+    function testWithdrawFromMultipleFunders() public funded {
+        // Arrange
+
+        // uint160 has the same number of bytes as an address so we can use uint160 to create addresses from address(uint160)
+        uint160 numberOfFunders = 10;
+        uint160 startingFunderIndex = 1;
+        for (uint160 i = startingFunderIndex; i < numberOfFunders; i++) {
+            // hoax is provided byy forge-std and it does vm.prank and vm.deal together
+            hoax(address(i), STARTING_BALANCE);
+            fundMe.fund{value: SEND_VALUE}();
+        }
+
+        address owner = fundMe.getOwner();
+        uint256 startingOwnerBalance = owner.balance;
+        uint256 startingFundMeBalance = address(fundMe).balance;
+
+        // Act
+        vm.prank(owner);
+        fundMe.withdraw();
+
+        // Assert
+        uint256 endingOwnerBalance = owner.balance;
+        uint256 endingFundMeBalance = address(fundMe).balance;
+
+        assertEq(endingFundMeBalance, 0); // all balance in the contract must be withdrawn
+        assertEq(
+            startingFundMeBalance + startingOwnerBalance,
+            endingOwnerBalance
+        ); // the owner must be deposited all the balance in the contract
     }
 }

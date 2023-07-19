@@ -12,7 +12,7 @@ contract FundMe {
     // Gas cost after making variable minimusUsd constant -> 634,564
 
     // variable to add owner as a state variable
-    address public immutable i_owner; // immutable keyword is used on variable that will be assigned during compilation and then cannot change
+    address private immutable i_owner; // immutable keyword is used on variable that will be assigned during compilation and then cannot change
     // minimum fee that can be funded will be $5
     uint256 public constant MINIMUM_USD = 5e18; // because our conversion rate will have 18 decimal places
 
@@ -40,11 +40,13 @@ contract FundMe {
 
     using PriceConverter for uint256; // this will allow us to use the library created as an extension for uint256 variables
 
-    // array of funders to keep track of all addresses who funded
-    address[] public funders;
+    // Common convention for storage variable naming is s_{variableName}
 
-    // mapping of funders with total amount funded
-    mapping(address => uint256) public addressToAmountFunded;
+    // array of s_funders to keep track of all addresses who funded
+    address[] private s_funders;
+
+    // mapping of s_funders with total amount funded
+    mapping(address => uint256) private s_addressToAmountFunded;
 
     // the price of ether in terms of $ is not a data that is available within the blockchain since it is a realtime data
     // to get the real world data we will be using oracles specifically ChainLink
@@ -71,9 +73,9 @@ contract FundMe {
         // this means any changes to the state of the contract done before the failed require state will be reverted back
         // the revert will return with the remaining gas fees, subtracting only gas used for computation above it
 
-        // To keep track of the funders we push the address that called this method
-        funders.push(msg.sender); // msg.sender is a global variable accessible to us
-        addressToAmountFunded[msg.sender] += msg.value; // this will add the sent value to the addresses previous fund total
+        // To keep track of the s_funders we push the address that called this method
+        s_funders.push(msg.sender); // msg.sender is a global variable accessible to us
+        s_addressToAmountFunded[msg.sender] += msg.value; // this will add the sent value to the addresses previous fund total
     }
 
     function withdraw() public onlyOwner {
@@ -96,6 +98,10 @@ contract FundMe {
             msg.sender
         ).call{value: address(this).balance}("");
         require(callSuccess, "Withdraw failed");
+
+        // In the tutorial the storage are cleared after withdraw
+        // We will leave the funders and mapping of funders to amount funded as is
+        // This will kee
     }
 
     // modifiers are custom keyword we can define that can be used while declaring a function
@@ -113,7 +119,7 @@ contract FundMe {
     }
 
     // There are other ways to send money to a contract without using any of the specified functions in the ABI
-    // In these cases the fund method wouldn't trigger and the funders data wouldn't change
+    // In these cases the fund method wouldn't trigger and the s_funders data wouldn't change
     // For this we use 'special' functions such as receive and fallback. For more info look into the FallbackExample contract.
 
     receive() external payable {
@@ -122,5 +128,26 @@ contract FundMe {
 
     fallback() external payable {
         fund(); //just call the fund method if any money is received from other methods than using our fund() function.
+    }
+
+    // Creating some functions to test the private storage items
+    // Private variables are more gas effiecient
+
+    function getAddressToAmountFunded(
+        address fundingAddress
+    ) external view returns (uint256) {
+        return s_addressToAmountFunded[fundingAddress];
+    }
+
+    // Get funders from array by index
+    function getFunderFromArrayByIndex(
+        uint256 index
+    ) external view returns (address) {
+        return s_funders[index];
+    }
+
+    // Get Owner of the Contract
+    function getOwner() external view returns (address) {
+        return i_owner;
     }
 }
