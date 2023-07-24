@@ -3,6 +3,7 @@
 pragma solidity 0.8.19;
 
 import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/Console.sol";
 import {FundMe} from "../src/FundMe.sol";
 import {DeployFundMe} from "../script/DeployFundMe.s.sol";
 
@@ -87,8 +88,13 @@ contract FundMeTest is Test {
         uint256 startingFundMeBalance = address(fundMe).balance;
 
         // Act
+        uint256 gasStart = gasleft(); // this will be the gas available in the start
         vm.prank(owner);
         fundMe.withdraw();
+
+        uint256 gasEnd = gasleft(); // this will be the gas left after the transaction is done
+        uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice;
+        console.log(gasUsed);
 
         // Assert
         uint256 endingOwnerBalance = owner.balance;
